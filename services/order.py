@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from django.db.models import QuerySet
+from django.db.models import QuerySet, Q
 from typing import Optional
 from datetime import datetime
 
@@ -15,17 +15,33 @@ def create_order(
 ) -> Order:
     user = get_user_model().objects.get(username=username)
 
-    # Optional: Validate no duplicate seats in same session
-    for ticket_data in tickets:
-        existing_ticket = Ticket.objects.filter(
-            movie_session_id=ticket_data["movie_session"],
-            row=ticket_data["row"],
-            seat=ticket_data["seat"]
-        ).exists()
-        if existing_ticket:
+    # Optimize: check for duplicate seats with a single query to avoid N+1
+    if tickets:
+        # Build Q objects for all ticket combinations
+        seat_queries = [
+            (Q(movie_session_id=ticket_data["movie_session"])
+             & Q(row=ticket_data["row"])
+             & Q(seat=ticket_data["seat"]))
+            for ticket_data in tickets
+        ]
+        # Combine all Q objects with OR
+        combined_query = seat_queries[0]
+        for query in seat_queries[1:]:
+            combined_query |= query
+
+        # Check if any conflicting tickets exist
+        existing_tickets = Ticket.objects.filter(combined_query)
+        if existing_tickets.exists():
+            # Find which specific seat(s) are taken for detailed error
+            conflict_info = []
+            for existing_ticket in existing_tickets:
+                conflict_info.append(
+                    f"Seat {existing_ticket.row}-{existing_ticket.seat} "
+                    f"in session {existing_ticket.movie_session.pk}"
+                )
             raise ValueError(
-                f"Seat {ticket_data['row']}-{ticket_data['seat']} "
-                f"already taken"
+                f"The following seats are already taken: "
+                f"{', '.join(conflict_info)}"
             )
 
     order = Order.objects.create(user=user)
@@ -34,10 +50,15 @@ def create_order(
         order.created_at = datetime.fromisoformat(date)
         order.save()
 
+    # Optimize: fetch all movie sessions in a single query to avoid N+1
+    movie_session_ids = {
+        ticket_data["movie_session"] for ticket_data in tickets
+    }
+    movie_sessions = MovieSession.objects.filter(id__in=movie_session_ids)
+    movie_session_map = {session.pk: session for session in movie_sessions}
+
     for ticket_data in tickets:
-        movie_session = MovieSession.objects.get(
-            id=ticket_data["movie_session"]
-        )
+        movie_session = movie_session_map[ticket_data["movie_session"]]
         Ticket.objects.create(
             row=ticket_data["row"],
             seat=ticket_data["seat"],
