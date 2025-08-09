@@ -18,19 +18,19 @@ def create_user(
         except ValidationError:
             raise ValueError("Invalid email format")
 
-    user = get_user_model().objects.create_user(
-        username=username,
-        password=password,
-    )
+    user_data = {
+        "username": username,
+        "password": password,
+    }
 
     if email:
-        user.email = email
+        user_data["email"] = email
     if first_name:
-        user.first_name = first_name
+        user_data["first_name"] = first_name
     if last_name:
-        user.last_name = last_name
+        user_data["last_name"] = last_name
 
-    user.save()
+    user = get_user_model().objects.create_user(**user_data)
 
     return user
 

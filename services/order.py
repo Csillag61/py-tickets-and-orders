@@ -5,6 +5,7 @@ from typing import Optional
 from datetime import datetime
 
 from db.models import Order, Ticket, MovieSession
+from services.user import get_user_by_username
 
 
 @transaction.atomic
@@ -13,26 +14,21 @@ def create_order(
         username: str,
         date: Optional[str] = None
 ) -> Order:
-    user = get_user_model().objects.get(username=username)
+    user = get_user_by_username(username)
 
-    # Optimize: check for duplicate seats with a single query to avoid N+1
     if tickets:
-        # Build Q objects for all ticket combinations
         seat_queries = [
             (Q(movie_session_id=ticket_data["movie_session"])
              & Q(row=ticket_data["row"])
              & Q(seat=ticket_data["seat"]))
             for ticket_data in tickets
         ]
-        # Combine all Q objects with OR
         combined_query = seat_queries[0]
         for query in seat_queries[1:]:
             combined_query |= query
 
-        # Check if any conflicting tickets exist
         existing_tickets = Ticket.objects.filter(combined_query)
         if existing_tickets.exists():
-            # Find which specific seat(s) are taken for detailed error
             conflict_info = []
             for existing_ticket in existing_tickets:
                 conflict_info.append(
@@ -50,7 +46,6 @@ def create_order(
         order.created_at = datetime.fromisoformat(date)
         order.save()
 
-    # Optimize: fetch all movie sessions in a single query to avoid N+1
     movie_session_ids = {
         ticket_data["movie_session"] for ticket_data in tickets
     }
@@ -71,7 +66,7 @@ def create_order(
 
 def get_orders(username: Optional[str] = None) -> QuerySet[Order]:
     if username:
-        user = get_user_model().objects.get(username=username)
+        user = get_user_by_username(username)
         return Order.objects.filter(user=user)
     return Order.objects.all()
 

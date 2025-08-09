@@ -6,13 +6,12 @@
 venv/
 .venv/
 .pytest_cache/
-**__pycache__/
+**/__pycache__/
 *.pyc
 *.sqlite3
 
 # Static files
 staticfiles/
-static/
 media/
 
 # Django specific
@@ -36,4 +35,3 @@ npm-debug.log*
 
 # OS generated files
 Thumbs.db
-*.DS_Store

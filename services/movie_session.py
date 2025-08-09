@@ -32,7 +32,6 @@ def create_multiple_movie_sessions(
     if not sessions_data:
         return []
 
-    # Collect all unique IDs
     movie_ids = {
         session_data["movie_id"] for session_data in sessions_data
     }
@@ -40,7 +39,6 @@ def create_multiple_movie_sessions(
         session_data["cinema_hall_id"] for session_data in sessions_data
     }
 
-    # Fetch all objects in single queries
     movies = {
         movie.pk: movie for movie in Movie.objects.filter(id__in=movie_ids)
     }
@@ -49,7 +47,6 @@ def create_multiple_movie_sessions(
         for hall in CinemaHall.objects.filter(id__in=cinema_hall_ids)
     }
 
-    # Create sessions
     sessions = []
     for session_data in sessions_data:
         show_time = datetime.fromisoformat(session_data["movie_show_time"])
@@ -103,8 +100,6 @@ def delete_movie_session_by_id(session_id: int) -> None:
 
 
 def get_taken_seats(movie_session_id: int) -> list[dict]:
-    # Optimize: use .values() to fetch only required fields,
-    # avoiding full model instances
     return list(
         Ticket.objects.filter(movie_session_id=movie_session_id)
         .values("row", "seat")
