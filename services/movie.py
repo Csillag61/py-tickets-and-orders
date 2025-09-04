@@ -45,3 +45,5 @@ def create_movie(
         movie.actors.set(actors_ids)
 
     return movie
+
+# get_movies already supports filtering by genres_ids, actors_ids, and title

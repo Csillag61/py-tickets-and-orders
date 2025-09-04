@@ -20,6 +20,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "db",
+    "rest_framework",
 ]
 
 MIDDLEWARE = [
@@ -101,3 +102,11 @@ STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# Django REST Framework pagination config
+REST_FRAMEWORK = {
+    "DEFAULT_PAGINATION_CLASS": (
+        "rest_framework.pagination.PageNumberPagination"
+    ),
+    "PAGE_SIZE": 10,
+}
